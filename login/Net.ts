@@ -24,6 +24,15 @@ export interface ApiResult {
     regions?: string[];
 }
 
+/** 登录态在 localStorage 中的键名（login 与 farm 场景共享，解决继承问题） */
+export const LOGIN_UID_KEY = 'loggedInUserId';
+export const LOGIN_NAME_KEY = 'loggedInUsername';
+
+/** 服务器地址配置（从原 ServerConfig 合并，避免重复文件） */
+export const SERVER = {
+    baseUrl: 'http://127.0.0.1:8000',
+};
+
 type Callback = (status: number, data: ApiResult | null) => void;
 
 function parseData(raw: any): ApiResult | null {
@@ -68,3 +77,100 @@ export const Http = {
     get(url: string, cb: Callback) { httpJson(url, 'GET', null, cb); },
     post(url: string, body: object, cb: Callback) { httpJson(url, 'POST', body, cb); },
 };
+
+// ============================================================
+// 农场游戏 API（从 farm/net/UserApi.ts 合并而来，减少重复网络文件）
+// 复用 login/Net 的 Http / SERVER
+// ============================================================
+
+/** 拉取玩家状态后统一整理成这个结构喂给 GameRoot */
+export interface RemoteUserState {
+  username: string | null;
+  gold: number;
+  inventory: any[];  // InventoryStack[] ; 避免循环依赖，运行时为 farm/data/ItemData 中的
+}
+
+/** 游戏状态 API（与后端 /api/game/* 对接） */
+export class UserApi {
+  constructor(private base: string = SERVER.baseUrl) {}
+
+  private async getJSON<T>(path: string): Promise<T> {
+    const res = await fetch(`${this.base}${path}`);
+    if (!res.ok) throw new Error(`GET ${path} -> ${res.status}`);
+    return (await res.json()) as T;
+  }
+
+  /** 拉取玩家状态（用户名 + 金币 + 背包） */
+  async fetchState(id: string | number): Promise<RemoteUserState> {
+    const j = await this.getJSON<any>(`/api/game/state?user_id=${encodeURIComponent(id)}`);
+    const d = (j && (j.data ?? j)) || {};
+
+    // 金币字段名容错
+    const goldRaw = d.gold ?? d.coins ?? d.user?.gold ?? d.user?.coins;
+
+    const rows: any[] = Array.isArray(d.inventory) ? d.inventory : [];
+    const inventory = rows.map((row: any) => toStack(row)).filter((s: any): s is any => !!s && s.count > 0);
+
+    return {
+      username: d.username ?? d.user?.username ?? null,
+      gold: typeof goldRaw === 'number' && isFinite(goldRaw) ? goldRaw : 500,
+      inventory,
+    };
+  }
+
+  /** 整包保存背包（购买 / 出售后立即调用）。gold 一并上送 */
+  async saveInventory(id: string | number, gold: number, inventory: any[]): Promise<void> {
+    const res = await fetch(`${this.base}/api/game/inventory`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        user_id: id,
+        gold,
+        inventory: inventory.map(toRow),
+      }),
+    });
+    if (!res.ok) throw new Error(`POST /api/game/inventory -> ${res.status}`);
+  }
+
+  /**
+   * 实时验证 + 更新：保存后立即重新拉取服务端权威数据
+   * 用于 farm 操作后时时同步验证
+   */
+  async saveAndSync(id: string | number, gold: number, inventory: any[]): Promise<RemoteUserState> {
+    await this.saveInventory(id, gold, inventory);
+    // 立即验证并返回最新数据
+    return await this.fetchState(id);
+  }
+}
+
+/** 数据库行 / 服务端对象 → InventoryStack 容错映射 */
+function toStack(row: any): any | null {
+  if (!row || typeof row !== 'object') return null;
+  const id = String(row.item_id ?? row.id ?? '');
+  if (!id) return null;
+  const acquired = typeof row.acquired === 'number'
+    ? row.acquired
+    : (row.acquired_at ? (Date.parse(row.acquired_at) || Date.now()) : Date.now());
+  return {
+    id,
+    name: row.item_name ?? row.name ?? id,
+    icon: row.icon ?? '',
+    category: row.category ?? 'fruit',
+    value: row.value ?? 1,
+    count: Math.max(0, Math.floor(Number(row.count) || 0)),
+    acquired,
+  };
+}
+
+/** 运行时 → 数据库行 */
+function toRow(s: any) {
+  return {
+    item_id: s.id,
+    item_name: s.name,
+    icon: s.icon,
+    category: s.category,
+    count: s.count,
+    value: s.value,
+    acquired_at: new Date(s.acquired).toISOString(),
+  };
+}
