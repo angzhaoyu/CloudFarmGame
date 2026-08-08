@@ -1,11 +1,7 @@
 // ============================================================
 // 星域传说 · 登录界面（Cocos Creator 3.8 / TypeScript）
-// 功能：账号密码登录 + 大区选择 + 注册
+// 功能：账号密码登录 + 大区选择 + 注册 + 游戏主页（金币/等级/经验/钻石）
 // 对接后端：Flask + MySQL 的 /api/login /api/register /api/regions
-//
-// 【场景流转】登录成功 → 写入 loggedInUserId 到 localStorage
-//            → director.loadScene('farm') 跳转农场场景
-//            （farm 场景的 GameRoot 读取 loggedInUserId 拉取玩家数据）
 //
 // 【屏幕适配方案】1280 x 720 为设计基础 + Fit Height（固定高度）
 //   - 设计分辨率固定 1280x720（横屏基准）
@@ -13,23 +9,19 @@
 //   - 背景 / 星星 / 四角元素随可见宽度动态布局 → 16:9 / 18:9 / 19.5:9 / 20:9 都正常
 //   - 竖屏时自动显示「请横屏使用」遮罩
 //
-// 使用：把本组件挂到 login 场景的 Canvas 节点上即可，UI 全部由代码生成。
-// 注意：login / farm 两个场景都需加入「构建发布 → 场景列表」，否则无法跳转。
+// 使用：把本组件挂到场景的 Canvas 节点上即可，UI 全部由代码生成。
 // ============================================================
 
-import { _decorator, Button, Color, Component, director, EditBox, Graphics, Label, Layers, Node, ResolutionPolicy, sys, UITransform, view } from 'cc';
-import { Http } from './Net';
+import { _decorator, Button, Color, Component, EditBox, Graphics, Label, Layers, Node, ResolutionPolicy, sys, UITransform, view } from 'cc';
+import { Http, UserInfo } from './Net';
 import { SERVER } from './ServerConfig';
+import { FarmMain } from './FarmMain';
 
 const { ccclass } = _decorator;
 
 // ==================== 设计分辨率（横屏基准）====================
 export const DESIGN_W = 1280;   // 设计宽度（横屏基础）
 export const DESIGN_H = 720;    // 设计高度
-
-/** 登录态在 localStorage 中的键名（与 farm/GameRoot.ts 约定一致） */
-export const LOGIN_UID_KEY = 'loggedInUserId';
-export const LOGIN_NAME_KEY = 'loggedInUsername';
 
 const CLR = {
     bg:       new Color(6, 9, 24, 255),
@@ -43,6 +35,7 @@ const CLR = {
     muted:    new Color(140, 158, 196, 255),
     red:      new Color(255, 96, 110, 255),
     cyan:     new Color(62, 226, 255, 255),
+    blue:     new Color(100, 120, 255, 255),
     textDark: new Color(58, 36, 5, 255),
 };
 
@@ -129,9 +122,6 @@ function edit(parent: Node, x: number, y: number, w: number, h: number,
 @ccclass('LoginMain')
 export class LoginMain extends Component {
 
-    /** 登录成功后要跳转的农场场景名（需与 .scene 文件名一致） */
-    private static readonly FARM_SCENE = 'farm';
-
     private regions: string[] = ['大区一 · 电信', '大区二 · 网通', '大区三 · 移动'];
     private region = '大区一 · 电信';
 
@@ -144,6 +134,7 @@ export class LoginMain extends Component {
     // 页面
     private pageLogin!: Node;
     private pageReg!: Node;
+    private pageHome!: Node;
     private popup!: Node;
     private regionList!: Node;
     private toastBox!: Node;
@@ -173,7 +164,22 @@ export class LoginMain extends Component {
     private rememberLabel!: Label;
     private rememberOn = true;
 
+    // 主页控件（HUD 两侧元素需随宽度调整）
+    private homeName!: Label;
+    private homeRegion!: Label;
+    private homeLevel!: Label;
+    private homeCoins!: Label;
+    private homeDiamonds!: Label;
+    private homeExpText!: Label;
+    private expFill!: Graphics;
+    private btnLogout!: Node;
+
     private toast!: Label;
+
+    // 农场
+    private farmNode: Node | null = null;
+    private btnFarm!: Node;
+    private currentUser: UserInfo | null = null;
 
     // ==================== 初始化 ====================
 
@@ -184,6 +190,7 @@ export class LoginMain extends Component {
         this.buildBackground();
         this.pageLogin = this.buildLoginPage();
         this.pageReg = this.buildRegPage();
+        this.pageHome = this.buildHomePage();
         this.popup = this.buildRegionPopup();
         this.buildPortraitMask();
         this.buildToast();
@@ -213,7 +220,7 @@ export class LoginMain extends Component {
     /**
      * 自适应布局核心：
      * Fit Height 下逻辑高度恒为 720，只有逻辑宽度随屏幕比例变化，
-     * 因此只需把「背景 / 星星 / 四角元素」按当前可见宽度摆放。
+     * 因此只需把「背景 / 星星 / 四角元素 / HUD」按当前可见宽度摆放。
      */
     private applyLayout(w: number, h: number) {
         this.visW = w;
@@ -234,10 +241,16 @@ export class LoginMain extends Component {
         if (this.titleLb) this.titleLb.node.setPosition(0, h / 2 - 118);
         if (this.subLb) this.subLb.node.setPosition(0, h / 2 - 182);
 
-        // 版本号：右下角（贴边）
+        // 版本号：右上角（贴边）
         if (this.versionLb) this.versionLb.node.setPosition(w / 2 - 130, -h / 2 + 46);
         // 测试信息：左下角（贴边）
         if (this.testInfoLb) this.testInfoLb.node.setPosition(-w / 2 + 165, -h / 2 + 46);
+
+        // 主页 HUD：玩家信息靠左、按钮靠右
+        if (this.homeName) this.homeName.node.setPosition(-w / 2 + 190, h / 2 - 52);
+        if (this.homeRegion) this.homeRegion.node.setPosition(-w / 2 + 190, h / 2 - 90);
+        if (this.btnFarm) this.btnFarm.setPosition(w / 2 - 330, h / 2 - 52);
+        if (this.btnLogout) this.btnLogout.setPosition(w / 2 - 120, h / 2 - 52);
 
         // 竖屏（高度 > 宽度）→ 显示「请横屏」遮罩
         if (this.portraitMask) {
@@ -360,6 +373,38 @@ export class LoginMain extends Component {
         return page;
     }
 
+    // ==================== 游戏主页（登录成功） ====================
+
+    private buildHomePage(): Node {
+        const page = ui('page_home', this.node, 0, 0, DESIGN_W, DESIGN_H);
+
+        this.homeName = label(page, '玩家 —', 30, CLR.white, 0, 0, 300, 44, true);
+        this.homeRegion = label(page, '', 16, CLR.gold, 0, 0, 300, 26, true);
+        label(page, '✦ 欢迎回来，愿星辰指引你的征途 ✦', 20, CLR.gold, 0, 250, 700, 36);
+        this.btnFarm = button(page, 0, 0, 180, 44, '🌾 我的农场', () => this.openFarm(), true, 18);
+        this.btnLogout = button(page, 0, 0, 130, 44, '退出登录', () => this.onLogout(), false, 18);
+
+        this.homeLevel = this.statCard(page, -290, 60, '等 级', 'LEVEL', CLR.blue);
+        this.homeCoins = this.statCard(page, 290, 60, '金 币', 'COINS', CLR.gold);
+        this.homeDiamonds = this.statCard(page, -290, -110, '钻 石', 'DIAMONDS', CLR.cyan);
+
+        // 经验卡（含经验条）
+        const expCard = box(page, 290, -110, 320, 130, CLR.panel, 14, CLR.border);
+        label(expCard, '经 验', 14, CLR.muted, -120, 38, 120, 24, true);
+        this.homeExpText = label(expCard, 'EXP 0 / 0', 18, CLR.cyan, 110, 38, 180, 26, true);
+        const barBg = box(expCard, 0, -12, 280, 18, CLR.input, 9, CLR.border);
+        this.expFill = ui('exp_fill', barBg, 0, 0, 280, 18).addComponent(Graphics);
+        return page;
+    }
+
+    private statCard(parent: Node, x: number, y: number, title: string, en: string, color: Color): Label {
+        const card = box(parent, x, y, 320, 130, CLR.panel, 14, CLR.border);
+        label(card, en, 12, CLR.muted, -120, 38, 160, 22, true);
+        const v = label(card, '0', 40, color, 0, -16, 300, 48);
+        label(card, title, 14, CLR.muted, 120, 38, 120, 22, true);
+        return v;
+    }
+
     // ==================== 大区选择弹窗 ====================
 
     private buildRegionPopup(): Node {
@@ -414,7 +459,7 @@ export class LoginMain extends Component {
     // ==================== 页面切换 ====================
 
     private showPage(p: Node) {
-        [this.pageLogin, this.pageReg].forEach(x => { if (x) x.active = x === p; });
+        [this.pageLogin, this.pageReg, this.pageHome].forEach(x => { if (x) x.active = x === p; });
     }
 
     private showError(lb: Label, msg: string) {
@@ -422,7 +467,7 @@ export class LoginMain extends Component {
         lb.node.active = true;
     }
 
-    // ==================== 登录（成功后跳转 farm 场景） ====================
+    // ==================== 登录 ====================
 
     private onLogin() {
         const acc = this.accEdit.string.trim();
@@ -433,24 +478,23 @@ export class LoginMain extends Component {
         // 与后端 MySQL users 表比对
         Http.post(SERVER.baseUrl + '/api/login', { username: acc, password: pwd, region: this.region }, (code, data) => {
             if (data && data.success && data.user) {
+                this.currentUser = data.user;
                 if (this.rememberOn) {
                     sys.localStorage.setItem('game_remember', JSON.stringify({ acc, region: this.region }));
                 }
+                
+                // 【新增】将登录成功的用户 ID 或 username 存入本地存储，供 farm 场景的 GameRoot 读取
+                // 假设后端返回的数据中有 id 字段，如果没有则使用 username 替代
+                const userId = data.user.id || data.user.username;
+                sys.localStorage.setItem('loggedInUserId', String(userId));
 
-                // 把登录态写入本地存储，供 farm 场景的 GameRoot 读取
-                // 优先使用数据库主键 id（后端返回）；没有 id 时退化为 username
-                const userId = data.user.id ?? data.user.username;
-                sys.localStorage.setItem(LOGIN_UID_KEY, String(userId));
-                sys.localStorage.setItem(LOGIN_NAME_KEY, data.user.username);
-
-                // 跳转到农场场景（场景名需与 .scene 文件名一致，并加入构建场景列表）
-                director.loadScene(LoginMain.FARM_SCENE);
+                // 【修改】登录成功后直接跳转到 farm 场景
+                director.loadScene('farm');
             } else {
                 this.showError(this.loginError, (data && data.message) || '登录失败，请稍后重试');
             }
         });
     }
-
     // ==================== 注册 ====================
 
     private onRegister() {
@@ -473,6 +517,49 @@ export class LoginMain extends Component {
                 this.showError(this.regError, (data && data.message) || '注册失败，请稍后重试');
             }
         });
+    }
+
+    // ==================== 游戏主页 ====================
+
+    private renderHome(u: UserInfo) {
+        this.homeName.string = '玩家 ' + u.username;
+        this.homeRegion.string = u.region;
+        this.homeLevel.string = String(u.level);
+        this.homeCoins.string = Number(u.coins || 0).toLocaleString();
+        this.homeDiamonds.string = Number(u.diamonds || 0).toLocaleString();
+        const need = Math.max(1, 500 * (u.level || 1));
+        const exp = u.exp || 0;
+        this.homeExpText.string = 'EXP ' + exp.toLocaleString() + ' / ' + need.toLocaleString();
+        this.expFill.clear();
+        this.expFill.fillColor = CLR.cyan;
+        const pct = Math.min(1, exp / need);
+        this.expFill.rect(-140, -9, 280 * pct, 18);
+        this.expFill.fill();
+    }
+
+    private onLogout() {
+        this.closeFarm();
+        this.currentUser = null;
+        this.showPage(this.pageLogin);
+        this.pwdEdit.string = '';
+        this.loginError.node.active = false;
+    }
+
+    /** 打开农场（懒加载 FarmMain 组件） */
+    private openFarm() {
+        if (!this.currentUser) return;
+        if (!this.farmNode) {
+            this.farmNode = new Node('FarmOverlay');
+            this.farmNode.layer = Layers.Enum.UI_2D;
+            this.node.addChild(this.farmNode);
+            const fm = this.farmNode.addComponent(FarmMain);
+            fm.setup(this.currentUser, () => this.closeFarm());
+        }
+        this.farmNode.active = true;
+    }
+
+    private closeFarm() {
+        if (this.farmNode) this.farmNode.active = false;
     }
 
     // ==================== 记住账号 ====================

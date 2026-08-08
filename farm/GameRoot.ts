@@ -1,19 +1,15 @@
 /**
  * GameRoot.ts —— 顶层装配（模块：启动/依赖注入）
  *
- * farm 场景入口。流程：
- *   login 场景登录成功 → localStorage('loggedInUserId') → director.loadScene('farm')
- *   → 本组件读取登录态，从 Flask + MySQL 后端拉取金币与背包，注入各 UI 模块。
- *
  * 这里是把所有「模块」拼起来的地方：
- *   - 数据模型：InventoryModel / PlayerModel（纯逻辑，不依赖引擎）
+ *   - 数据模型：InventoryModel / PlayerModel（纯逻辑，已单测）
  *   - 配置：ItemConfig（物品/价值单一来源）
  *   - UI：BackpackPanel / ShopPanel / Toast
- *   - 网络：UserApi（读写 SQL 后端，与 login 共用 SERVER.baseUrl）
+ *   - 网络：UserApi（读写 SQL 后端）
  *
  * 以后新增系统（如任务、成就），只需 new 一个模块、注入、挂按钮即可。
  */
-import { _decorator, Component, Label, Button, sys, director } from 'cc';
+import { _decorator, Component, Label, Button } from 'cc';
 import { InventoryModel } from './data/InventoryModel';
 import { PlayerModel } from './data/PlayerModel';
 import { INITIAL_GOLD, buildInitialInventory } from './config/ItemConfig';
@@ -23,12 +19,7 @@ import { Toast } from './ui/Toast';
 import { UserApi } from './net/UserApi';
 const { ccclass, property } = _decorator;
 
-/** 本地存储 Key（与 login/LoginMain.ts 写入的键一致） */
-export const LOGIN_UID_KEY = 'loggedInUserId';
-export const LOGIN_NAME_KEY = 'loggedInUsername';
-
-/** 未检测到登录态时的演示账号（用于单独预览 farm 场景调试） */
-const DEMO_USER_ID = 1;
+//const USER_ID = 1; // 演示用固定用户；真实项目从登录态获取
 
 @ccclass('GameRoot')
 export class GameRoot extends Component {
@@ -39,31 +30,16 @@ export class GameRoot extends Component {
   @property(Button) openBackpackBtn: Button = null!;
   @property(Button) openShopBtn: Button = null!;
 
-  /** 可选：返回登录场景按钮（在编辑器里绑定才生效，不绑定自动忽略） */
-  @property(Button) backLoginBtn: Button = null!;
-
-  /** 返回登录按钮跳转的场景名（需加入构建场景列表） */
-  @property
-  loginSceneName = 'login';
-
   private player = new PlayerModel(INITIAL_GOLD);
   private inventory = new InventoryModel();
-  private api = new UserApi();
-
-  /** 当前玩家 id（数据库 users 表主键；未登录时为演示账号） */
-  private userId: string | number = DEMO_USER_ID;
+  private api = new UserApi('http://localhost:3000');
 
   async onLoad() {
-    // —— 0) 读取登录态（login 场景登录成功时写入 localStorage） ——
-    const savedId = sys.localStorage.getItem(LOGIN_UID_KEY);
-    const savedName = sys.localStorage.getItem(LOGIN_NAME_KEY);
-    if (savedId) {
-      const n = Number(savedId);
-      this.userId = isNaN(n) ? savedId : n;
-    } else {
-      console.warn('[GameRoot] 未检测到登录信息，使用演示账号 id=' + DEMO_USER_ID);
+    // 【新增】从登录态获取真正的 USER_ID
+    const savedUserId = sys.localStorage.getItem('loggedInUserId');
+    if (savedUserId) {
+        this.userId = savedUserId; // 提取登录存入的数据
     }
-    if (savedName) this.player.username = savedName;
 
     // 1) 注入数据模型到 UI
     this.backpack.inventory = this.inventory;
@@ -74,10 +50,7 @@ export class GameRoot extends Component {
     // 2) 注入回调（金币刷新 / 飘字 / 持久化）
     const onGold = (g: number) => { this.goldLabel.string = '💰 ' + g; };
     const onToast = (m: string) => this.toast.show(m);
-    const persist = () => {
-      this.api.saveInventory(this.userId, this.player.gold, this.inventory.toJSON())
-        .catch(err => console.warn('[GameRoot] 保存背包失败（后端不可用？）', err));
-    };
+    const persist = () => { this.api.saveInventory(USER_ID, this.inventory.toJSON()); };
     this.backpack.onGoldChanged = onGold;
     this.backpack.onToast = onToast;
     this.backpack.onChanged = persist;
@@ -85,18 +58,12 @@ export class GameRoot extends Component {
     this.shop.onToast = onToast;
     this.shop.onChanged = persist;
 
-    // 3) 从 SQL 后端拉取玩家状态；失败则本地初始数据兜底
+    // 3) 登录：从 SQL 后端拉取用户；失败则本地初始数据兜底
     try {
-      const s = await this.api.fetchState(this.userId);
-      this.player.bindUser(String(this.userId), s.username ?? savedName);
-      this.player.gold = s.gold;
-      if (s.inventory.length > 0) {
-        this.inventory.loadJSON(s.inventory);
-      } else {
-        // 新用户库里还没有背包 → 发一套初始背包并立即落库
-        this.inventory.loadJSON(buildInitialInventory());
-        persist();
-      }
+      const u = await this.api.fetchUser(USER_ID);
+      this.player.bindUser(String(USER_ID), u.username);
+      this.player.gold = u.gold;
+      this.inventory.loadJSON(u.inventory);
     } catch (e) {
       console.warn('[GameRoot] 后端不可用，使用本地初始背包', e);
       this.inventory.loadJSON(buildInitialInventory());
@@ -106,15 +73,5 @@ export class GameRoot extends Component {
     // 4) HUD 按钮
     this.openBackpackBtn.node.on(Button.EventType.CLICK, () => this.backpack.open());
     this.openShopBtn.node.on(Button.EventType.CLICK, () => this.shop.open());
-    if (this.backLoginBtn) {
-      this.backLoginBtn.node.on(Button.EventType.CLICK, () => this.backToLogin());
-    }
-  }
-
-  /** 退出登录：清除登录态并返回 login 场景 */
-  private backToLogin() {
-    sys.localStorage.removeItem(LOGIN_UID_KEY);
-    sys.localStorage.removeItem(LOGIN_NAME_KEY);
-    director.loadScene(this.loginSceneName || 'login');
   }
 }
