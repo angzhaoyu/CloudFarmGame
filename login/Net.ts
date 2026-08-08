@@ -6,6 +6,7 @@
 // ============================================================
 
 export interface UserInfo {
+    id?: number;            // 数据库 users 表主键，farm 场景按它拉取玩家数据
     username: string;
     region: string;
     coins: number;
@@ -15,22 +16,12 @@ export interface UserInfo {
     created_at?: string;
 }
 
-export interface FarmPlot {
-    plot_index: number;
-    state: string;
-    crop_type: string | null;
-    planted_at: string | null;
-    grow_stage: number;
-}
-
 export interface ApiResult {
     success: boolean;
     message?: string;
     code?: string;
     user?: UserInfo;
     regions?: string[];
-    plots?: FarmPlot[];
-    plot?: FarmPlot;
 }
 
 type Callback = (status: number, data: ApiResult | null) => void;
