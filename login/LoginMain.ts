@@ -17,7 +17,7 @@
 // 注意：login / farm 两个场景都需加入「构建发布 → 场景列表」，否则无法跳转。
 // ============================================================
 
-import { _decorator, Button, Color, Component, director, EditBox, Graphics, Label, Layers, Node, ResolutionPolicy, sys, UITransform, view } from 'cc';
+import { _decorator, Button, Color, Component, director, EditBox, Graphics, Label, Layers, Node, ResolutionPolicy, Sprite, sys, UITransform, view } from 'cc';
 import { Http, SERVER, LOGIN_UID_KEY, LOGIN_NAME_KEY } from './Net';
 
 const { ccclass } = _decorator;
@@ -68,10 +68,29 @@ function label(parent: Node, text: string, size: number, color: Color,
     return lb;
 }
 
-/** 画一个圆角矩形底（Graphics 纯代码绘制，不需要任何图片资源） */
-function box(parent: Node, x: number, y: number, w: number, h: number,
-             fill: Color, radius = 12, stroke?: Color): Node {
+/**
+ * 创建一个**纯容器**节点（不添加任何特殊组件）。
+ * 
+ * ⚠️ Cocos Creator 硬性限制（这就是你报错的根源）：
+ *   同一个节点**绝对不能**同时拥有 cc.Graphics + cc.Sprite！
+ * 
+ * 这个 coloredPanel() 只负责创建带 UITransform 的节点。
+ * 需要圆角背景的面板请使用下面的 `coloredPanel()`。
+ */
+function box(parent: Node, x: number, y: number, w: number, h: number): Node {
     const n = ui('box', parent, x, y, w, h);
+    return n;
+}
+
+/**
+ * 创建带圆角纯色背景的面板（**仅**添加 Graphics）。
+ * 专门用于登录、注册等纯代码 UI。
+ * 
+ * 永远不要在这个节点上再调用 addComponent(Sprite)。
+ */
+function coloredPanel(parent: Node, x: number, y: number, w: number, h: number,
+                      fill: Color, radius = 12, stroke?: Color): Node {
+    const n = box(parent, x, y, w, h);   // 正确：使用纯容器 box
     const g = n.addComponent(Graphics);
     g.fillColor = fill;
     g.roundRect(-w / 2, -h / 2, w, h, Math.min(radius, w / 2, h / 2));
@@ -86,7 +105,7 @@ function box(parent: Node, x: number, y: number, w: number, h: number,
 
 function button(parent: Node, x: number, y: number, w: number, h: number,
                 text: string, cb: () => void, gold = false, fontSize = 22): Node {
-    const n = box(parent, x, y, w, h, gold ? CLR.goldBtn : CLR.panel, 12, gold ? CLR.goldDark : CLR.border);
+    const n = coloredPanel(parent, x, y, w, h, gold ? CLR.goldBtn : CLR.panel, 12, gold ? CLR.goldDark : CLR.border);
     label(n, text, fontSize, gold ? CLR.textDark : CLR.white, 0, 0, w, h);
     const b = n.addComponent(Button);
     b.transition = Button.Transition.SCALE;
@@ -97,7 +116,7 @@ function button(parent: Node, x: number, y: number, w: number, h: number,
 
 function edit(parent: Node, x: number, y: number, w: number, h: number,
               placeholder: string, isPwd = false): EditBox {
-    const n = box(parent, x, y, w, h, CLR.input, 10, CLR.border);
+    const n = coloredPanel(parent, x, y, w, h, CLR.input, 10, CLR.border);
     const e = n.addComponent(EditBox);
     e.placeholder = placeholder;
     e.maxLength = isPwd ? 20 : 16;
@@ -296,14 +315,14 @@ export class LoginMain extends Component {
         this.buildHeadTexts();
 
         const page = ui('page_login', this.node, 0, 0, DESIGN_W, DESIGN_H);
-        const panel = box(page, 0, -60, 500, 470, CLR.panel, 16, CLR.border);
+        const panel = coloredPanel(page, 0, -60, 500, 470, CLR.panel, 16, CLR.border);
         label(panel, '账 号 登 录', 26, CLR.gold, 0, 196, 400, 40);
 
         this.accEdit = edit(panel, 0, 108, 440, 58, '请输入游戏账号');
         this.pwdEdit = edit(panel, 0, 32, 440, 58, '请输入密码', true);
 
         // 大区选择（点击弹出大区列表）
-        const regionBtn = box(panel, 0, -44, 440, 58, CLR.input, 10, CLR.border);
+        const regionBtn = coloredPanel(panel, 0, -44, 440, 58, CLR.input, 10, CLR.border);
         this.regionLabel = label(regionBtn, '大区：' + this.region, 22, CLR.white, 0, 0, 440, 58);
         const rb = regionBtn.addComponent(Button);
         rb.transition = Button.Transition.SCALE;
@@ -332,14 +351,14 @@ export class LoginMain extends Component {
 
     private buildRegPage(): Node {
         const page = ui('page_reg', this.node, 0, 0, DESIGN_W, DESIGN_H);
-        const panel = box(page, 0, 0, 500, 520, CLR.panel, 16, CLR.border);
+        const panel = coloredPanel(page, 0, 0, 500, 520, CLR.panel, 16, CLR.border);
         label(panel, '注 册 新 账 号', 26, CLR.gold, 0, 220, 400, 40);
 
         this.regAccEdit = edit(panel, 0, 136, 440, 56, '账号（3-16位，字母/数字/下划线/中文）');
         this.regPwdEdit = edit(panel, 0, 62, 440, 56, '密码（6-20位）', true);
         this.regPwd2Edit = edit(panel, 0, -12, 440, 56, '确认密码', true);
 
-        const regionBtn = box(panel, 0, -86, 440, 56, CLR.input, 10, CLR.border);
+        const regionBtn = coloredPanel(panel, 0, -86, 440, 56, CLR.input, 10, CLR.border);
         this.regRegionLabel = label(regionBtn, '大区：' + this.region, 22, CLR.white, 0, 0, 440, 56);
         const rb = regionBtn.addComponent(Button);
         rb.transition = Button.Transition.SCALE;
@@ -367,7 +386,7 @@ export class LoginMain extends Component {
         g.fill();
         overlay.on(Node.EventType.TOUCH_END, () => this.closePopup());
 
-        const boxN = box(overlay, 0, 0, 420, 360, CLR.panel, 16, CLR.border);
+        const boxN = coloredPanel(overlay, 0, 0, 420, 360, CLR.panel, 16, CLR.border);
         label(boxN, '选 择 大 区', 26, CLR.gold, 0, 140, 320, 40);
         this.regionList = ui('region_list', boxN, 0, -10, 420, 300);
         overlay.active = false;
@@ -393,7 +412,8 @@ export class LoginMain extends Component {
     // ==================== Toast ====================
 
     private buildToast() {
-        const tb = box(this.node, 0, 300, 460, 52, CLR.goldBtn, 26);
+        // Toast 背景使用 coloredPanel（带颜色）
+        const tb = coloredPanel(this.node, 0, 300, 460, 52, CLR.goldBtn, 26);
         this.toast = label(tb, '', 22, CLR.textDark, 0, 0, 460, 52);
         tb.active = false;
         this.toastBox = tb;

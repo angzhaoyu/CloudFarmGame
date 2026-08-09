@@ -30,6 +30,14 @@ export const LOGIN_NAME_KEY = 'loggedInUsername';
 
 /** 服务器地址配置（从原 ServerConfig 合并，避免重复文件） */
 export const SERVER = {
+    /** 
+     * ★★★ 必须写完整地址 ★★★
+     * Cocos Creator 编辑器预览时请务必写成：
+     *   baseUrl: 'http://127.0.0.1:8000'
+     * 
+     * 写成空字符串、'/' 或不带协议的地址会导致：
+     *   fetch(...) 变成 "++/api/game/state?user_id=1++" → 400 错误
+     */
     baseUrl: 'http://127.0.0.1:8000',
 };
 
@@ -92,25 +100,96 @@ export interface RemoteUserState {
 
 /** 游戏状态 API（与后端 /api/game/* 对接） */
 export class UserApi {
-  constructor(private base: string = SERVER.baseUrl) {}
+  private _base: string;
+
+  constructor(base?: string) {
+    this._base = base || SERVER.baseUrl || 'http://127.0.0.1:8000';
+  }
+
+  /** 永远返回一个合法的完整 URL 前缀 */
+  private _getSafeBase(): string {
+    const raw = (this._base || (SERVER as any).baseUrl || 'http://127.0.0.1:8000') + '';
+    let b = raw.trim().replace(/\/+$/, '');
+
+    // 任何可疑值直接重置
+    if (!b || b.length < 10 || b === '/' || b === 'http:' || b === 'https:' || !b.includes('.')) {
+      b = 'http://127.0.0.1:8000';
+    }
+    if (!b.startsWith('http')) {
+      b = 'http://' + b.replace(/^\/+/, '');
+    }
+    return b;
+  }
+
+  /** 终极防御：无论如何都返回一个合法的 http 地址 */
+  private _normalizeBase(): string {
+    let b = String(this._base || (SERVER as any).baseUrl || 'http://127.0.0.1:8000').trim();
+    b = b.replace(/\/+$/g, '');
+    if (!b || b.length < 7 || !b.includes('.')) {
+      b = 'http://127.0.0.1:8000';
+    }
+    if (!/^https?:\/\//i.test(b)) {
+      b = 'http://' + b.replace(/^\/+/, '');
+    }
+    return b;
+  }
+
+
+  /** 
+   * 极度防御的 baseUrl 构造器
+   * 专门修复 Cocos Creator 编辑器预览中出现的：
+   *   GET ++/api/game/state?user_id=1++ -> 400
+   */
+  private getBaseUrl(): string {
+    return this._normalizeBase();
+  }
+
+  private buildUrl(path: string): string {
+    const base = this._getSafeBase();
+    if (/^https?:\/\//i.test(path)) return path;
+
+    const clean = path.startsWith('/') ? path : '/' + path;
+    let url = base + clean;
+
+    // 无论如何都不允许坏 URL
+    if (!url.includes('://') || url.startsWith('/') || url.includes('++')) {
+      console.error('[UserApi] 强制修正坏URL:', url);
+      url = 'http://127.0.0.1:8000' + clean;
+    }
+    return url;
+  }
+
+  public setBaseUrl(url: string) { this._base = url; }
 
   private async getJSON<T>(path: string): Promise<T> {
-    const res = await fetch(`${this.base}${path}`);
-    if (!res.ok) throw new Error(`GET ${path} -> ${res.status}`);
+    let url = this.buildUrl(path);
+
+    // === 关键调试日志（在编辑器预览中能直接看到问题）===
+    console.log('[UserApi] 真实请求URL:', url);
+
+    // 终极保险：任何异常 URL 都强制使用安全默认
+    if (!url || !url.includes('://') || url.includes('++') || url.startsWith('/') || url.length < 10) {
+      const cleanPath = path.startsWith('/') ? path : '/' + path;
+      url = 'http://127.0.0.1:8000' + cleanPath;
+      console.error('[UserApi] 检测到异常URL，已强制修正为安全地址:', url);
+    }
+
+    const res = await fetch(url, {
+      method: 'GET',
+      headers: { 'Accept': 'application/json' },
+      cache: 'no-cache' as any,
+    });
+    if (!res.ok) throw new Error(`GET ${url} -> ${res.status}`);
     return (await res.json()) as T;
   }
 
-  /** 拉取玩家状态（用户名 + 金币 + 背包） */
   async fetchState(id: string | number): Promise<RemoteUserState> {
-    const j = await this.getJSON<any>(`/api/game/state?user_id=${encodeURIComponent(id)}`);
+    const urlPath = `/api/game/state?user_id=${encodeURIComponent(String(id))}`;
+    const j = await this.getJSON<any>(urlPath);
     const d = (j && (j.data ?? j)) || {};
-
-    // 金币字段名容错
     const goldRaw = d.gold ?? d.coins ?? d.user?.gold ?? d.user?.coins;
-
     const rows: any[] = Array.isArray(d.inventory) ? d.inventory : [];
     const inventory = rows.map((row: any) => toStack(row)).filter((s: any): s is any => !!s && s.count > 0);
-
     return {
       username: d.username ?? d.user?.username ?? null,
       gold: typeof goldRaw === 'number' && isFinite(goldRaw) ? goldRaw : 500,
@@ -118,27 +197,18 @@ export class UserApi {
     };
   }
 
-  /** 整包保存背包（购买 / 出售后立即调用）。gold 一并上送 */
   async saveInventory(id: string | number, gold: number, inventory: any[]): Promise<void> {
-    const res = await fetch(`${this.base}/api/game/inventory`, {
+    const url = this.buildUrl('/api/game/inventory');
+    const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        user_id: id,
-        gold,
-        inventory: inventory.map(toRow),
-      }),
+      body: JSON.stringify({ user_id: id, gold, inventory: inventory.map(toRow) }),
     });
-    if (!res.ok) throw new Error(`POST /api/game/inventory -> ${res.status}`);
+    if (!res.ok) throw new Error(`POST ${url} -> ${res.status}`);
   }
 
-  /**
-   * 实时验证 + 更新：保存后立即重新拉取服务端权威数据
-   * 用于 farm 操作后时时同步验证
-   */
   async saveAndSync(id: string | number, gold: number, inventory: any[]): Promise<RemoteUserState> {
     await this.saveInventory(id, gold, inventory);
-    // 立即验证并返回最新数据
     return await this.fetchState(id);
   }
 }
