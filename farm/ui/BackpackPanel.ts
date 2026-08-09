@@ -4,7 +4,7 @@
  * ★ 网页结构还原 ★
  *
  * BackpackPanel  (挂载本脚本)
- * ├── Overlay     (全屏半透明遮罩，点击遮罩关闭面板)
+ * ├── Overlay     (全屏半透明 Sprite 遮罩 1280×720，⚠️不是 Mask！点击空白处关闭面板)
  * │   └── Panel   (Sprite，主面板 680×?，绿色渐变背景 + 金色边框)
  * │       ├── Header  (横向 Layout)
  * │       │   ├── TitleLabel   (Label: "农 场 背 包"，金色 #ffe9b0)
@@ -46,7 +46,7 @@ const SORT_ACTIVE = new Color(255, 233, 176);
 export class BackpackPanel extends Component {
 
   /* ===== 遮罩 ===== */
-  /** 全屏半透明遮罩节点（点击空白处关闭面板） */
+  /** 全屏半透明遮罩节点（挂 Sprite 组件，不是 Mask！点击空白处关闭面板） */
   @property(Node)      overlay:     Node       = null!;
 
   /* ===== 主面板 ===== */

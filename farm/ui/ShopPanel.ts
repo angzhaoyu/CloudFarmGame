@@ -4,7 +4,7 @@
  * ★ 网页结构还原 ★
  *
  * ShopPanel  (挂载本脚本)
- * ├── Overlay     (全屏半透明遮罩，点击遮罩关闭面板)
+ * ├── Overlay     (全屏半透明 Sprite 遮罩 1280×720，⚠️不是 Mask！点击空白处关闭面板)
  * │   └── Panel   (Sprite，主面板 680×?，绿色渐变背景 + 金色边框)
  * │       ├── Header  (横向 Layout)
  * │       │   ├── TitleLabel   (Label: "农 场 商 店"，金色 #ffe9b0)
@@ -35,7 +35,7 @@ const TAB_ACTIVE = new Color(217, 181, 106);
 @ccclass('ShopPanel')
 export class ShopPanel extends Component {
 
-  /* ===== 遮罩 ===== */
+  /* ===== 遮罩（Sprite，不是 Mask！） ===== */
   @property(Node)      overlay:        Node       = null!;
 
   /* ===== 主面板 ===== */
