@@ -5,7 +5,7 @@
 //
 // 【场景流转】登录成功 → 写入 loggedInUserId 到 localStorage
 //            → director.loadScene('farm') 跳转农场场景
-//            （farm 场景的 GameRoot 读取 loggedInUserId 拉取玩家数据）
+//            （farm 场景的 GameRoot 从 login/Net 读取 LOGIN_*_KEY 拉取玩家数据）
 //
 // 【屏幕适配方案】1280 x 720 为设计基础 + Fit Height（固定高度）
 //   - 设计分辨率固定 1280x720（横屏基准）
@@ -18,8 +18,7 @@
 // ============================================================
 
 import { _decorator, Button, Color, Component, director, EditBox, Graphics, Label, Layers, Node, ResolutionPolicy, sys, UITransform, view } from 'cc';
-import { Http } from './Net';
-import { SERVER } from './ServerConfig';
+import { Http, SERVER, LOGIN_UID_KEY, LOGIN_NAME_KEY } from './Net';
 
 const { ccclass } = _decorator;
 
@@ -27,9 +26,7 @@ const { ccclass } = _decorator;
 export const DESIGN_W = 1280;   // 设计宽度（横屏基础）
 export const DESIGN_H = 720;    // 设计高度
 
-/** 登录态在 localStorage 中的键名（与 farm/GameRoot.ts 约定一致） */
-export const LOGIN_UID_KEY = 'loggedInUserId';
-export const LOGIN_NAME_KEY = 'loggedInUsername';
+// LOGIN_UID_KEY / LOGIN_NAME_KEY 现在从 ./Net 统一导出（避免重复定义）
 
 const CLR = {
     bg:       new Color(6, 9, 24, 255),

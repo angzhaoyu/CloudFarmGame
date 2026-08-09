@@ -9,7 +9,7 @@
  *   - 数据模型：InventoryModel / PlayerModel（纯逻辑，不依赖引擎）
  *   - 配置：ItemConfig（物品/价值单一来源）
  *   - UI：BackpackPanel / ShopPanel / Toast
- *   - 网络：UserApi（读写 SQL 后端，与 login 共用 SERVER.baseUrl）
+ *   - 网络：UserApi（已合并到 login/Net.ts，统一继承登录态 + SERVER + 实时API）
  *
  * 以后新增系统（如任务、成就），只需 new 一个模块、注入、挂按钮即可。
  */
@@ -20,12 +20,9 @@ import { INITIAL_GOLD, buildInitialInventory } from './config/ItemConfig';
 import { BackpackPanel } from './ui/BackpackPanel';
 import { ShopPanel } from './ui/ShopPanel';
 import { Toast } from './ui/Toast';
-import { UserApi } from './net/UserApi';
+import { UserApi, RemoteUserState } from '../login/Net';  // 统一从 login/Net 继承登录态、SERVER、UserApi（解决继承失败 + 减少重复文件）
+import { LOGIN_UID_KEY, LOGIN_NAME_KEY } from '../login/Net';
 const { ccclass, property } = _decorator;
-
-/** 本地存储 Key（与 login/LoginMain.ts 写入的键一致） */
-export const LOGIN_UID_KEY = 'loggedInUserId';
-export const LOGIN_NAME_KEY = 'loggedInUsername';
 
 /** 未检测到登录态时的演示账号（用于单独预览 farm 场景调试） */
 const DEMO_USER_ID = 1;
@@ -74,10 +71,39 @@ export class GameRoot extends Component {
     // 2) 注入回调（金币刷新 / 飘字 / 持久化）
     const onGold = (g: number) => { this.goldLabel.string = '💰 ' + g; };
     const onToast = (m: string) => this.toast.show(m);
-    const persist = () => {
-      this.api.saveInventory(this.userId, this.player.gold, this.inventory.toJSON())
-        .catch(err => console.warn('[GameRoot] 保存背包失败（后端不可用？）', err));
+
+    /**
+     * 实时验证+更新：每次操作后保存并立即从后端拉取最新权威数据
+     * 解决“后台数据时时验证和更新”
+     */
+    const persist = async () => {
+      try {
+        const latest: RemoteUserState = await this.api.saveAndSync(
+          this.userId,
+          this.player.gold,
+          this.inventory.toJSON()
+        );
+        // 用服务端返回的权威数据覆盖本地（时时验证）
+        this.player.gold = latest.gold;
+        if (latest.inventory && latest.inventory.length > 0) {
+          this.inventory.loadJSON(latest.inventory);
+        }
+        onGold(this.player.gold);
+        // 可选：重新渲染当前打开的面板（背包/商店）
+        if (this.backpack && this.backpack.panel && this.backpack.panel.active) {
+          this.backpack.render();
+        }
+        if (this.shop && this.shop.panel && this.shop.panel.active) {
+          this.shop.render();
+        }
+      } catch (err) {
+        console.warn('[GameRoot] 实时保存/同步失败（后端不可用？），仅本地保存', err);
+        // 降级：仅保存不刷新
+        this.api.saveInventory(this.userId, this.player.gold, this.inventory.toJSON())
+          .catch(() => {});
+      }
     };
+
     this.backpack.onGoldChanged = onGold;
     this.backpack.onToast = onToast;
     this.backpack.onChanged = persist;
@@ -95,7 +121,7 @@ export class GameRoot extends Component {
       } else {
         // 新用户库里还没有背包 → 发一套初始背包并立即落库
         this.inventory.loadJSON(buildInitialInventory());
-        persist();
+        persist();  // async ok
       }
     } catch (e) {
       console.warn('[GameRoot] 后端不可用，使用本地初始背包', e);
