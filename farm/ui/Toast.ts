@@ -13,7 +13,7 @@ export class Toast extends Component {
   private lb!: Label;
 
   onLoad() {
-    setImg(this.node, 'toast.png', 48);
+    setImg(this.node, 'toast.png', 44);
     this.lb = label(this.node, '', 18, GOLD, 0, 0, 460, 40);
     this.node.active = false;
   }

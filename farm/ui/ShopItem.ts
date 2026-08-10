@@ -22,7 +22,7 @@ export class ShopItem extends Component {
     if (ut) ut.setContentSize(CELL, CELL);
 
     // 底（与背包格子同款）
-    setImg(this.node, 'cell.png', 28);
+    setImg(this.node, 'cell.png', 24);
 
     // 图标
     const icon = ui('icon', this.node, 0, 24, 26, 26);
@@ -39,7 +39,7 @@ export class ShopItem extends Component {
 
     // 购买按钮（买不起禁用）
     const btn = imgButton(this.node, 0, -34, 72, 26,
-      canBuy ? 'buy_normal.png' : 'buy_disabled.png', 28,
+      canBuy ? 'buy_normal.png' : 'buy_disabled.png', 24,
       () => onBuy(def), 0.95);
     if (!canBuy) btn.getComponent(Button)!.interactable = false;
     label(btn, '购买', 13, WHITE, 0, 0, 72, 26, false, false, true);

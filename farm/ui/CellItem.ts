@@ -24,7 +24,7 @@ export class CellItem extends Component {
     if (ut) ut.setContentSize(CELL, CELL);
 
     // 格子底（与网页 .cell 同款）
-    setImg(this.node, 'cell.png', 28);
+    setImg(this.node, 'cell.png', 24);
 
     // 名称（顶部居中）
     label(this.node, data.name, 11, C_NAME, 0, 37, 90, 14);
@@ -37,7 +37,7 @@ export class CellItem extends Component {
     label(this.node, 'x' + data.count, 13, C_COUNT, -31, -37, 40, 16, true, false, true);
 
     // 卖💰（右下角）
-    this.sellNode = imgButton(this.node, 24, -37, 56, 22, 'sell_badge.png', 18,
+    this.sellNode = imgButton(this.node, 24, -37, 56, 22, 'sell_badge.png', 16,
       () => onSell(data.id), 0.95);
     label(this.sellNode, '卖💰' + data.value, 11, C_SELL, 0, 0, 56, 22, false, false, true);
     // 点击出售按钮时阻止冒泡，避免触发「点格子看详情」

@@ -26,30 +26,32 @@
 | `stage_bg.png` | 场景背景（天空→草地渐变，网页 `#stage`） | 拉伸全屏 | - |
 | `sun.png` | 左上角太阳（网页 `#stage::before`） | 90×90 | - |
 | `ground_strip.png` | 底部地面装饰条纹（网页 `#stage::after`） | 贴底铺满宽 | - |
-| `gold_hud.png` | 金币胶囊（`.gold-hud`） | 170×42 | 46 |
-| `shop_btn.png` | 商店圆形按钮（`.shop-btn`，含购物车图标） | 92×92 | 100 |
-| `open_btn.png` | 背包圆形按钮（`.open-btn`，含竹篮图标） | 92×92 | 100 |
-| `toast.png` | 飘字提示（`.toast`） | 480×44 | 48 |
+| `gold_hud.png` | 金币胶囊（`.gold-hud`） | 170×42 | 42 |
+| `shop_btn.png` | 商店圆形按钮（`.shop-btn`，含购物车图标） | 92×92 | 92 |
+| `open_btn.png` | 背包圆形按钮（`.open-btn`，含竹篮图标） | 92×92 | 92 |
+| `toast.png` | 飘字提示（`.toast`） | 480×44 | 44 |
 | `overlay_scrim.png` | 面板遮罩（`.overlay` 背景） | 拉伸全屏 | - |
-| `panel.png` | 面板主体（`.panel` 绿底金边圆角） | 680×524 | 21 |
-| `panel_header.png` | 面板头部渐变条（`.panel-header`） | 680×56 | 22/4/22/4 |
-| `toolbar.png` | 工具栏深色条（`.toolbar`） | 680×52 | 18/2/18/2 |
-| `panel_footer.png` | 面板底部条（`.panel-footer`） | 680×44 | 22/4/22/4 |
-| `tab_normal.png` | 分类 Tab 未选中（`.tab`） | 68×36 | 40 |
-| `tab_active.png` | 分类 Tab 选中金色（`.tab.active`） | 68×36 | 40 |
-| `sort_normal.png` | 排序按钮未选中（`.sort-btn`） | 76×32 | 32 |
-| `sort_active.png` | 排序按钮选中（`.sort-btn.active`） | 76×32 | 32 |
-| `close_btn.png` | × 关闭按钮（`.close-btn`，× 已画入图内） | 36×36 | 22 |
-| `cell.png` | 背包格子 / 商店物品卡底（`.cell` / `.shop-item`） | 97.33×97.33 | 28 |
-| `sell_badge.png` | 「卖💰N」小徽章（`.cell .sell`） | 56×22 | 18 |
-| `buy_normal.png` | 「购买」按钮（`.buy-btn`） | 72×26 | 28 |
-| `buy_disabled.png` | 「购买」按钮禁用态（`.buy-btn:disabled`） | 72×26 | 28 |
+| `panel.png` | 面板主体（`.panel` 绿底金边圆角） | 680×524 | 18 |
+| `panel_header.png` | 面板头部渐变条（`.panel-header`） | 680×56 | 15/15/15/4 |
+| `toolbar.png` | 工具栏深色条（`.toolbar`） | 680×52 | 2/2/2/2 |
+| `panel_footer.png` | 面板底部条（`.panel-footer`） | 680×44 | 2/2/2/2 |
+| `tab_normal.png` | 分类 Tab 未选中（`.tab`） | 68×36 | 36 |
+| `tab_active.png` | 分类 Tab 选中金色（`.tab.active`） | 68×36 | 36 |
+| `sort_normal.png` | 排序按钮未选中（`.sort-btn`） | 76×32 | 28 |
+| `sort_active.png` | 排序按钮选中（`.sort-btn.active`） | 76×32 | 28 |
+| `close_btn.png` | × 关闭按钮（`.close-btn`，× 已画入图内） | 36×36 | 18 |
+| `cell.png` | 背包格子 / 商店物品卡底（`.cell` / `.shop-item`） | 97.33×97.33 | 24 |
+| `sell_badge.png` | 「卖💰N」小徽章（`.cell .sell`） | 56×22 | 16 |
+| `buy_normal.png` | 「购买」按钮（`.buy-btn`） | 72×26 | 24 |
+| `buy_disabled.png` | 「购买」按钮禁用态（`.buy-btn:disabled`） | 72×26 | 24 |
 
 > 说明：
 > - 小控件按 **2x 分辨率**输出（高清屏更清晰），大面板/背景 1x。
 > - 尺寸/颜色全部取自 `backpack_reference.html` 的 CSS（圆角、描边、渐变、半透明都一致）。
 > - 圆形按钮上的 🧺/🛒 图标（网页 emoji）已直接画进图片里；文字（背包/商店/金币数字…）
 >   仍是 Cocos Label，保证动态更新。
+> - **九宫格边距 = 圆角半径（纹理像素）**（2x 图 = 2×逻辑半径；边框画在圆角矩形内部，无需另加）。
+>   详见《Cocos布局详细说明.md》9.1 / 9.2 节。
 
 ## 三、如何导入 Cocos 项目
 

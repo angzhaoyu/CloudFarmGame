@@ -75,25 +75,25 @@ export class BackpackPanel extends Component {
 
     // —— 面板主体 ——
     this.panel = ui('panel', this.node, 0, 0, PANEL_W, PANEL_H);
-    setImg(this.panel, 'panel.png', 21);
+    setImg(this.panel, 'panel.png', 18);
     const top = PANEL_H / 2;
 
     // —— header：标题 + × 关闭 ——
     const header = ui('header', this.panel, 0, top - HEADER_H / 2, PANEL_W, HEADER_H);
-    setImg(header, 'panel_header.png', [22, 4, 22, 4]);
+    setImg(header, 'panel_header.png', [15, 15, 15, 4]);
     label(header, '农 场 背 包', 22, C_TITLE, -150, 0, 320, 40, true, false, true);
-    imgButton(header, PANEL_W / 2 - 22 - 18, 0, 36, 36, 'close_btn.png', 22,
+    imgButton(header, PANEL_W / 2 - 22 - 18, 0, 36, 36, 'close_btn.png', 18,
       () => this.close(), 0.9);
 
     // —— toolbar：分类 Tab + 排序 ——
     const toolbar = ui('toolbar', this.panel, 0, top - HEADER_H - TOOLBAR_H / 2, PANEL_W, TOOLBAR_H);
-    setImg(toolbar, 'toolbar.png', [18, 2, 18, 2]);
+    setImg(toolbar, 'toolbar.png', [2, 2, 2, 2]);
 
     const cats: (ItemCategory | 'all')[] = ['all', 'seed', 'fruit', 'fert'];
     const catText = ['全部', '种子', '果实', '化肥'];
     let tx = -PANEL_W / 2 + 18 + 34;
     cats.forEach((cat, i) => {
-      const n = imgButton(toolbar, tx, 0, 68, 36, 'tab_normal.png', 40,
+      const n = imgButton(toolbar, tx, 0, 68, 36, 'tab_normal.png', 36,
         () => this.setCategory(cat), 0.95);
       const lb = label(n, catText[i], 14, C_TEXT, 0, 0, 68, 36);
       this.tabs.push({ node: n, lb, cat });
@@ -106,7 +106,7 @@ export class BackpackPanel extends Component {
       { key: 'name', text: '名称', x: 284 },
     ];
     for (const d of sortDefs) {
-      const n = imgButton(toolbar, d.x, 0, 76, 32, 'sort_normal.png', 32,
+      const n = imgButton(toolbar, d.x, 0, 76, 32, 'sort_normal.png', 28,
         () => this.setSort(d.key), 0.95);
       const lb = label(n, d.text, 13, C_TEXT, 0, 0, 76, 32);
       this.sortBtns.push({ node: n, lb, key: d.key });
@@ -141,7 +141,7 @@ export class BackpackPanel extends Component {
 
     // —— footer ——
     const footer = ui('footer', this.panel, 0, -PANEL_H / 2 + FOOTER_H / 2, PANEL_W, FOOTER_H);
-    setImg(footer, 'panel_footer.png', [22, 4, 22, 4]);
+    setImg(footer, 'panel_footer.png', [2, 2, 2, 2]);
     this.footerLabel = label(footer, '', 13, C_TEXT, -170, 0, 340, 30, true);
     label(footer, '点格子看详情 · 点「卖💰」出售 · 可上下滑动', 13, C_HINT, 165, 0, 340, 30, false, true);
 
@@ -218,7 +218,7 @@ export class BackpackPanel extends Component {
     const idx = ['all', 'seed', 'fruit', 'fert'].indexOf(this.category);
     this.tabs.forEach((t, i) => {
       const active = i === idx;
-      setImg(t.node, active ? 'tab_active.png' : 'tab_normal.png', 40);
+      setImg(t.node, active ? 'tab_active.png' : 'tab_normal.png', 36);
       t.lb.color = active ? C_TEXT_D : C_TEXT;
       t.lb.isBold = active;
     });
@@ -227,7 +227,7 @@ export class BackpackPanel extends Component {
   private refreshSort() {
     this.sortBtns.forEach((b) => {
       const active = this.sortKey === b.key;
-      setImg(b.node, active ? 'sort_active.png' : 'sort_normal.png', 32);
+      setImg(b.node, active ? 'sort_active.png' : 'sort_normal.png', 28);
       const arrow = active ? (this.sortDir === 'desc' ? ' ↓' : ' ↑') : '';
       b.lb.string = (b.key === 'time' ? '时间' : '名称') + arrow;
       b.lb.color = active ? C_TITLE : C_TEXT;

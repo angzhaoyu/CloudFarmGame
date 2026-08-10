@@ -72,25 +72,25 @@ export class ShopPanel extends Component {
 
     // —— 面板主体 ——
     this.panel = ui('panel', this.node, 0, 0, PANEL_W, PANEL_H);
-    setImg(this.panel, 'panel.png', 21);
+    setImg(this.panel, 'panel.png', 18);
     const top = PANEL_H / 2;
 
     // —— header：标题 + × 关闭 ——
     const header = ui('header', this.panel, 0, top - HEADER_H / 2, PANEL_W, HEADER_H);
-    setImg(header, 'panel_header.png', [22, 4, 22, 4]);
+    setImg(header, 'panel_header.png', [15, 15, 15, 4]);
     label(header, '农 场 商 店', 22, C_TITLE, -150, 0, 320, 40, true, false, true);
-    imgButton(header, PANEL_W / 2 - 22 - 18, 0, 36, 36, 'close_btn.png', 22,
+    imgButton(header, PANEL_W / 2 - 22 - 18, 0, 36, 36, 'close_btn.png', 18,
       () => this.close(), 0.9);
 
     // —— toolbar：2 个 Tab + "仅售 种子 / 化肥" ——
     const toolbar = ui('toolbar', this.panel, 0, top - HEADER_H - TOOLBAR_H / 2, PANEL_W, TOOLBAR_H);
-    setImg(toolbar, 'toolbar.png', [18, 2, 18, 2]);
+    setImg(toolbar, 'toolbar.png', [2, 2, 2, 2]);
 
     const cats: ('seed' | 'fert')[] = ['seed', 'fert'];
     const catText = ['种子', '化肥'];
     let tx = -PANEL_W / 2 + 18 + 34;
     cats.forEach((cat, i) => {
-      const n = imgButton(toolbar, tx, 0, 68, 36, 'tab_normal.png', 40,
+      const n = imgButton(toolbar, tx, 0, 68, 36, 'tab_normal.png', 36,
         () => this.setCategory(cat), 0.95);
       const lb = label(n, catText[i], 14, C_TEXT, 0, 0, 68, 36);
       this.tabs.push({ node: n, lb, cat });
@@ -127,7 +127,7 @@ export class ShopPanel extends Component {
 
     // —— footer ——
     const footer = ui('footer', this.panel, 0, -PANEL_H / 2 + FOOTER_H / 2, PANEL_W, FOOTER_H);
-    setImg(footer, 'panel_footer.png', [22, 4, 22, 4]);
+    setImg(footer, 'panel_footer.png', [2, 2, 2, 2]);
     this.goldLabel = label(footer, '', 13, C_TEXT, -170, 0, 340, 30, true);
     label(footer, '点「购买」放入背包 · 售价=回收价×2', 13, C_HINT, 165, 0, 340, 30, false, true);
 
@@ -190,7 +190,7 @@ export class ShopPanel extends Component {
     const idx = ['seed', 'fert'].indexOf(this.category);
     this.tabs.forEach((t, i) => {
       const active = i === idx;
-      setImg(t.node, active ? 'tab_active.png' : 'tab_normal.png', 40);
+      setImg(t.node, active ? 'tab_active.png' : 'tab_normal.png', 36);
       t.lb.color = active ? C_TEXT_D : C_TEXT;
       t.lb.isBold = active;
     });

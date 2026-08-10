@@ -137,18 +137,18 @@ export class GameRoot extends Component {
 
     // —— 金币 HUD（左上角，同网页 .gold-hud）——
     const hud = ui('gold_hud', this.node, 0, 0, 170, 42);
-    setImg(hud, 'gold_hud.png', 46);
+    setImg(hud, 'gold_hud.png', 42);
     addAnchor(hud, { top: 18, left: 18 });
     this.goldLabel = label(hud, '💰 ' + this.player.gold, 18, GOLD, 0, 0, 150, 40, false, false, true);
 
     // —— 商店按钮（左下角圆形，同网页 .shop-btn）——
-    const shopBtn = imgButton(this.node, 0, 0, 92, 92, 'shop_btn.png', 100,
+    const shopBtn = imgButton(this.node, 0, 0, 92, 92, 'shop_btn.png', 92,
       () => this.openShop(), 0.92);
     addAnchor(shopBtn, { left: 36, bottom: 36 });
     label(shopBtn, '商店', 16, WHITE, 0, -16, 92, 20, false, false, true);
 
     // —— 背包按钮（右下角圆形，同网页 .open-btn）——
-    const bpBtn = imgButton(this.node, 0, 0, 92, 92, 'open_btn.png', 100,
+    const bpBtn = imgButton(this.node, 0, 0, 92, 92, 'open_btn.png', 92,
       () => this.openBackpack(), 0.92);
     addAnchor(bpBtn, { right: 36, bottom: 36 });
     label(bpBtn, '背包', 16, WHITE, 0, -16, 92, 20, false, false, true);
