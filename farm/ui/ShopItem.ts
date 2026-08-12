@@ -1,34 +1,47 @@
 /**
- * ui/ShopItem.ts —— 商店「物品卡」Prefab 脚本（视图层，最薄）
+ * ui/ShopItem.ts —— 商店「物品卡」（对照网页 .shop-item 结构：图标/名称/价格/回收/购买）
+ * 由 ShopPanel.render() 动态创建；init() 里完成全部构建。
+ * 买不起时：价格变红 + 购买按钮置灰禁用（与网页 .price.poor / button:disabled 一致）。
  */
-import { _decorator, Component, Label, Sprite, Button, SpriteFrame, resources } from 'cc';
+import { _decorator, Button, Color, Component, resources, Sprite, SpriteFrame, UITransform } from 'cc';
 import type { ShopDef } from '../data/ItemData';
-const { ccclass, property } = _decorator;
+import { imgButton, label, setImg, ui } from './Ui';
+const { ccclass } = _decorator;
+
+const CELL = 97.33;
+const C_NAME   = new Color(91, 68, 34, 255);   // #5b4422
+const C_PRICE  = new Color(58, 42, 18, 255);   // #3a2a12
+const C_POOR   = new Color(192, 57, 43, 255);  // #c0392b（买不起）
+const C_RESALE = new Color(138, 122, 85, 255); // #8a7a55
+const WHITE    = new Color(255, 255, 255, 255);
 
 @ccclass('ShopItem')
 export class ShopItem extends Component {
-  @property(Label) nameLabel: Label = null!;
-  @property(Sprite) iconSprite: Sprite = null!;
-  @property(Label) priceLabel: Label = null!;   // 💰 售价
-  @property(Label) resaleLabel: Label = null!;  // 回收💰价值
-  @property(Button) buyBtn: Button = null!;
+  init(def: ShopDef, canBuy: boolean, onBuy: (def: ShopDef) => void) {
+    const ut = this.getComponent(UITransform);
+    if (ut) ut.setContentSize(CELL, CELL);
 
-  private data!: ShopDef;
-  private onBuy?: (def: ShopDef) => void;
+    // 底（与背包格子同款）
+    setImg(this.node, 'cell.png', 24);
 
-  init(def: ShopDef, onBuy: (def: ShopDef) => void) {
-    this.data = def;
-    this.onBuy = onBuy;
-    this.nameLabel.string = def.name;
-    this.priceLabel.string = '💰 ' + def.price;
-    this.resaleLabel.string = '回收💰' + def.value;
-    this.loadIcon(def.icon);
-    this.buyBtn.node.on(Button.EventType.CLICK, () => this.onBuy?.(def));
-  }
-
-  private loadIcon(key: string) {
-    resources.load(`textures/items/${key}`, SpriteFrame, (err, sf: SpriteFrame) => {
-      if (!err && sf) this.iconSprite.spriteFrame = sf;
+    // 图标
+    const icon = ui('icon', this.node, 0, 24, 26, 26);
+    const sp = icon.addComponent(Sprite);
+    sp.sizeMode = Sprite.SizeMode.CUSTOM;
+    resources.load(`textures/items/${def.icon}`, SpriteFrame, (err, sf) => {
+      if (!err && sf) sp.spriteFrame = sf;
     });
+
+    // 名称 / 价格（买不起变红）/ 回收价
+    label(this.node, def.name, 11, C_NAME, 0, 6, 90, 14);
+    label(this.node, '💰 ' + def.price, 12, canBuy ? C_PRICE : C_POOR, 0, -7, 90, 16, false, false, true);
+    label(this.node, '回收💰' + def.value, 9, C_RESALE, 0, -19, 90, 12);
+
+    // 购买按钮（买不起禁用）
+    const btn = imgButton(this.node, 0, -34, 72, 26,
+      canBuy ? 'buy_normal.png' : 'buy_disabled.png', 24,
+      () => onBuy(def), 0.95);
+    if (!canBuy) btn.getComponent(Button)!.interactable = false;
+    label(btn, '购买', 13, WHITE, 0, 0, 72, 26, false, false, true);
   }
 }
